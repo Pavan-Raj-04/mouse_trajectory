@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mouse Trajectory Analysis</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        h1 { color: #333; }
+        p { font-size: 1.2em; }
+        #status { margin-bottom: 20px; }
+    </style>
+</head>
+<body onload="initiateAnalysis()">
+    <h1>Mouse Trajectory Analysis</h1>
+    <p id="status">Move your mouse to record your trajectory. The system will detect whether you're human or a bot based on the movement pattern.</p>
+    <p id="result"></p>
+
+    <script>
+        let trajectory = [];
+        let timeout;  // Variable to track inactivity
+
+        // Function to analyze initial trajectory on page load
+        function initiateAnalysis() {
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ trajectory: [] }),  // Empty trajectory on load
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = data.result || 'Waiting for movement...';
+                document.getElementById('status').innerText = 'Move your mouse to record your trajectory.';
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Capture mouse movements and analyze when no movement for 300ms
+        document.addEventListener('mousemove', function(event) {
+            trajectory.push([event.clientX, event.clientY]);
+
+            if (trajectory.length >= 60) {  // Start analysis after 60 points
+                clearTimeout(timeout);
+
+                // Analyze after 300ms of inactivity
+                timeout = setTimeout(() => {
+                    fetch('/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ trajectory: trajectory }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('result').innerText = data.result;
+                        document.getElementById('status').innerText = '';
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
+
+                    trajectory = [];  // Reset trajectory after sending
+                }, 300);
+            }
+        });
+    </script>
+</body>
+</html>
